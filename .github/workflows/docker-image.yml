@@ -57,7 +57,7 @@ jobs:
         with:
           registry: ${{ env.GITHUB_REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.TOKEN }}
 
       # Step 5: Build and Push Docker Images
       - name: Build and Push Docker Image
