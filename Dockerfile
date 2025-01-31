@@ -41,6 +41,8 @@ RUN python3 -m venv /app/venv && \
     pip install --upgrade pip setuptools wheel && \
     pip install selenium shodan trafilatura geoip2 neo4j requests Levenshtein
 
+RUN ln -sf /app/venv/bin/python3 /usr/bin/python3
+
 # Add Python virtual environment to PATH
 ENV PATH="/app/venv/bin:$PATH"
 
