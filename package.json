@@ -1,0 +1,5 @@
+{
+	"dependencies": {
+		"n8n-workflow": "^1.70.0"
+	}
+}

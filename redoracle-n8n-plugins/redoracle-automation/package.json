@@ -1,0 +1,14 @@
+{
+  "name": "redoracle-automation",
+  "version": "2.0.0",
+  "description": "Automation tools (Telegram, Helpdesk) for n8n",
+  "main": "index.js",
+  "author": "Redoracle",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2"
+  }
+}

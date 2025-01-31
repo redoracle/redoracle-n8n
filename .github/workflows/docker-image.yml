@@ -1,0 +1,128 @@
+name: Build, Push Docker Image, and Create Release for Redoracle Plugins
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to deploy
+        required: false
+        default: main
+      testing:
+        description: Enable testing workflow
+        required: false
+        type: boolean
+        default: false
+      tag:
+        description: Tag for the release (e.g., v1.0.0)
+        required: false
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+
+jobs:
+  build-and-push:
+    env:
+      DOCKER_REGISTRY: docker.io
+      GITHUB_REGISTRY: ghcr.io
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout Repository
+      - uses: actions/checkout@v4
+
+      # Step 2: Set up QEMU and Docker Buildx
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          install: true
+
+      # Step 3: Docker Hub Login
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Step 4: GitHub Container Registry Login
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.GITHUB_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 5: Build and Push Docker Images
+      - name: Build and Push Docker Image
+        run: |
+          docker buildx create --use
+          docker buildx build . \
+            --platform linux/amd64,linux/arm64 \
+            -t ${{ env.DOCKER_REGISTRY }}/redoracle/redoracle-n8n:latest \
+            -t ${{ env.GITHUB_REGISTRY }}/redoracle/redoracle-n8n:latest \
+            --push
+
+      # Step 6: Output Build Summary
+      - name: Add Summary Details
+        if: always()
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "* Docker Hub: [${{ env.DOCKER_REGISTRY }}/redoracle/redoracle-n8n:latest](https://${{ env.DOCKER_REGISTRY }}/r/redoracle/redoracle-n8n)" >> $GITHUB_STEP_SUMMARY
+          echo "* GitHub Registry: [${{ env.GITHUB_REGISTRY }}/redoracle/redoracle-n8n:latest](https://${{ env.GITHUB_REGISTRY }}/redoracle/redoracle-n8n)" >> $GITHUB_STEP_SUMMARY
+
+  create-release:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.tag)
+    steps:
+      # Step 1: Checkout Repository
+      - uses: actions/checkout@v4
+
+      # Step 2: Extract Tag
+      - name: Get Release Tag
+        id: get_tag
+        run: |
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          fi
+
+      # Step 3: Check for Existing Release
+      - name: Check Release Existence
+        id: check_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tag = '${{ steps.get_tag.outputs.tag }}';
+            const releases = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            const exists = releases.data.some(release => release.tag_name === tag);
+            core.setOutput('exists', exists);
+
+      # Step 4: Create Release if Not Exists
+      - name: Create GitHub Release
+        if: steps.check_release.outputs.exists == 'false'
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ steps.get_tag.outputs.tag }}
+          release_name: Release ${{ steps.get_tag.outputs.tag }}
+          body: |
+            ### Redoracle Plugins Release ${{ steps.get_tag.outputs.tag }}
+            - **Docker Hub**: [${{ env.DOCKER_REGISTRY }}/redoracle/redoracle-n8n:latest](https://${{ env.DOCKER_REGISTRY }}/r/redoracle/redoracle-n8n)
+            - **GitHub Registry**: [${{ env.GITHUB_REGISTRY }}/redoracle/redoracle-n8n:latest](https://${{ env.GITHUB_REGISTRY }}/redoracle/redoracle-n8n)
+
+      # Step 5: Notify Release Exists
+      - name: Notify Existing Release
+        if: steps.check_release.outputs.exists == 'true'
+        run: echo "Release ${{ steps.get_tag.outputs.tag }} already exists."

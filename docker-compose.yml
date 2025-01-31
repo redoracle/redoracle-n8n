@@ -1,0 +1,22 @@
+
+services:
+  n8n:
+    build: .
+    container_name: redoracle-n8n
+    ports:
+      - "5678:5678"
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+      # Se vuoi log su file:
+      # - ./logs:/app/logs
+    environment:
+      # Attiva/disattiva logging avanzato
+      - REDORACLE_VERBOSE_LOGGING=true
+      - REDORACLE_LOG_FILE=/app/logs/redoracle.log
+
+      # Esempio credenziali base auth (opzionali)
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+
+    restart: unless-stopped

@@ -1,0 +1,17 @@
+{
+  "name": "redoracle-security",
+  "version": "2.0.0",
+  "description": "Security tools (WHOIS, Shodan, GeoIP, Threat Intelligence) for n8n",
+  "main": "index.js",
+  "author": "Redoracle",
+  "license": "MIT",
+  "dependencies": {
+    "geoip-lite": "^1.4.10",
+    "shodan-client": "^1.1.0",
+    "axios": "^1.7.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2"
+  }
+
+}
