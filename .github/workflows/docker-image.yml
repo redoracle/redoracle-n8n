@@ -62,12 +62,11 @@ jobs:
       # Step 5: Build and Push Docker Images
       - name: Build and Push Docker Image
         run: |
-          docker buildx create --use
           docker buildx build . \
             --platform linux/amd64,linux/arm64 \
+            --push \
             -t ${{ env.DOCKER_REGISTRY }}/redoracle/redoracle-n8n:latest \
-            -t ${{ env.GITHUB_REGISTRY }}/redoracle/redoracle-n8n:latest \
-            --push
+            -t ${{ env.GITHUB_REGISTRY }}/redoracle/redoracle-n8n:latest
 
       # Step 6: Output Build Summary
       - name: Add Summary Details
@@ -87,16 +86,11 @@ jobs:
       - uses: actions/checkout@v4
 
       # Step 2: Extract Tag
-      - name: Get Release Tag
+      - name: Extract Tag
         id: get_tag
-        run: |
-          if [ "${{ github.event_name }}" == "push" ]; then
-            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
-          fi
-
-      # Step 3: Check for Existing Release
+        run: echo "tag=${{ github.ref_name || github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+        
+            # Step 3: Check for Existing Release
       - name: Check Release Existence
         id: check_release
         uses: actions/github-script@v6
