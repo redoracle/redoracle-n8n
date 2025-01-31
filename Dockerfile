@@ -51,7 +51,7 @@ RUN pip install --no-cache-dir --break-system-packages \
     trafilatura \
     neo4j \
     Levenshtein
-    
+
 # Add Python virtual environment to PATH
 ENV PATH="/app/venv/bin:$PATH"
 
@@ -79,7 +79,7 @@ RUN if command -v pnpm >/dev/null 2>&1; then \
 RUN mkdir -p $PNPM_HOME && chown -R node:node $PNPM_HOME
 
 # Install global dependencies with pnpm
-RUN pnpm add -g full-icu@1.5.0 neo4j-driver fast-levenshtein --unsafe-perm
+RUN npm add -g full-icu@1.5.0 neo4j-driver fast-levenshtein axios --unsafe-perm
 
 # Activate corepack and prepare pnpm
 RUN corepack enable 
