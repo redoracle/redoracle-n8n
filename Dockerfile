@@ -19,6 +19,15 @@ RUN apk add --no-cache \
     python3 \
     py3-pip \
     python3-dev \
+    py3-requests \
+    py3-geoip2 \
+    py3-pillow \
+    py3-openssl \
+    py3-cryptography \
+    gcc \
+    musl-dev \
+    libffi-dev \
+    openssl-dev \
     chromium \
     chromium-chromedriver \
     jq \
@@ -35,10 +44,14 @@ RUN apk add --no-cache \
     ca-certificates \
     libc6-compat
 
-# Create a Python virtual environment
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install selenium shodan trafilatura geoip2 neo4j requests Levenshtein
-
+# Install additional Python packages (via apk or pip inside user space)
+RUN pip install --no-cache-dir --break-system-packages \
+    selenium \
+    shodan \
+    trafilatura \
+    neo4j \
+    Levenshtein
+    
 # Add Python virtual environment to PATH
 ENV PATH="/app/venv/bin:$PATH"
 
