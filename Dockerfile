@@ -36,9 +36,7 @@ RUN apk add --no-cache \
     libc6-compat
 
 # Create a Python virtual environment
-RUN python3 -m venv /app/venv && \
-    . /app/venv/bin/activate && \
-    pip install --upgrade pip setuptools wheel && \
+RUN pip install --upgrade pip setuptools wheel && \
     pip install selenium shodan trafilatura geoip2 neo4j requests Levenshtein
 
 RUN ln -sf /app/venv/bin/python3 /usr/bin/python3
