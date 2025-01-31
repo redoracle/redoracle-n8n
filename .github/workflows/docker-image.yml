@@ -1,6 +1,18 @@
 name: Build, Push Docker Image, and Create Release for Redoracle Plugins
 
 on:
+  push:
+    branches:
+      - main  # Triggers on every push to the 'main' branch
+    tags:
+      - 'v*.*.*'  # Trigger on version tag pushes like v1.0.0
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+
+  schedule:
+    - cron: '0 0 * * 0' # This will trigger weekly (Sunday at midnight)
+    
   workflow_dispatch:
     inputs:
       branch:
@@ -15,14 +27,6 @@ on:
       tag:
         description: Tag for the release (e.g., v1.0.0)
         required: false
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*.*.*'
-    paths:
-      - 'Dockerfile'
-      - 'docker-compose.yml'
 
 jobs:
   build-and-push:
