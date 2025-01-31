@@ -39,7 +39,7 @@ RUN apk add --no-cache \
 RUN python3 -m venv /app/venv && \
     . /app/venv/bin/activate && \
     pip install --upgrade pip setuptools wheel && \
-    pip install selenium shodan trafilatura geoip2 neo4j
+    pip install selenium shodan trafilatura geoip2 neo4j neo4j Levenshtein
 
 # Add Python virtual environment to PATH
 ENV PATH="/app/venv/bin:$PATH"
