@@ -41,7 +41,7 @@ jobs:
 
       # Step 3: Set up pnpm using the official action
       - name: Set up pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
           version: 10.2.1 
 
