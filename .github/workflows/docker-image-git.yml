@@ -38,23 +38,27 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up Node.js and pnpm
+      # Step 2: Set up Node.js and enable pnpm caching
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "18"
+          node-version: "20"
           cache: "pnpm"
-      - name: Install pnpm
-        run: npm install -g pnpm
 
-      # Step 3: Clone the upstream n8n repository into a subfolder
+      # Step 3: Set up pnpm using the official action
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.15.4 # Adjust the version as needed
+
+      # Step 4: Clone the upstream n8n repository into a subfolder
       - name: Clone n8n Repository
         run: |
           git clone https://github.com/n8n-io/n8n.git n8n-src
           cd n8n-src
           echo "Cloned n8n from upstream."
 
-      # Step 4: Install global dependencies (turbo, typescript, rimraf, cross-env, vue-tsc)
+      # Step 5: Install global dependencies (turbo, typescript, rimraf, cross-env, vue-tsc)
       - name: Install Global Dependencies
         working-directory: n8n-src
         run: |
@@ -62,7 +66,7 @@ jobs:
           pnpm install -g typescript rimraf
           pnpm install -g cross-env vue-tsc
 
-      # Step 5: Clean pnpm cache and node_modules then install dependencies
+      # Step 6: Clean pnpm cache and node_modules then install dependencies
       - name: Clean and Install Dependencies
         working-directory: n8n-src
         run: |
@@ -70,7 +74,7 @@ jobs:
           rm -rf node_modules
           pnpm install
 
-      # Step 6: Install additional dependencies at the workspace root
+      # Step 7: Install additional dependencies at the workspace root
       - name: Install Additional Dependencies at Workspace Root
         working-directory: n8n-src
         run: |
@@ -89,19 +93,19 @@ jobs:
             selenium-webdriver
           pnpm install --save-dev @types/natural
 
-      # Step 7: Build the n8n project
+      # Step 8: Build the n8n project
       - name: Build n8n
         working-directory: n8n-src
         run: pnpm run build
 
-      # Step 8: Build the Docker image
+      # Step 9: Set up QEMU and Docker Buildx (for multi-architecture builds)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # Login to Docker Hub
+      # Step 10: Login to Docker Hub
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
@@ -109,7 +113,7 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Login to GitHub Container Registry
+      # Step 11: Login to GitHub Container Registry
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
         with:
@@ -117,7 +121,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.TOKEN }}
 
-      # Step 9: Build and Push Docker Image
+      # Step 12: Build and Push Docker Image
       - name: Build and Push Docker Image
         working-directory: n8n-src/docker/images/n8n
         run: |
@@ -129,7 +133,7 @@ jobs:
             -t ${{ env.GITHUB_REGISTRY }}/redoracle/redoracle-n8n:latest \
             .
 
-      # Step 10: Add Build Summary Details
+      # Step 13: Add Build Summary Details
       - name: Add Summary Details
         if: always()
         run: |
@@ -140,8 +144,9 @@ jobs:
   create-release:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') ||
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.tag)
+    if: >
+      github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag)
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
