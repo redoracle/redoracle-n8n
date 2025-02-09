@@ -44,11 +44,6 @@ RUN apk --no-cache add --virtual fonts msttcorefonts-installer fontconfig && \
 # Build the application from source
 WORKDIR /src
 COPY . /src
-# Configure pnpm to use longer timeout and retries
-RUN corepack disable && \
-    pnpm config set fetch-timeout 600000 && \
-    pnpm config set fetch-retries 5 && \
-    pnpm config set registry https://registry.npmjs.org/
 
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     --mount=type=cache,id=pnpm-metadata,target=/root/.cache/pnpm/metadata \
