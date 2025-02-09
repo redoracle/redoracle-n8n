@@ -49,6 +49,8 @@ jobs:
       - name: Clone n8n Repository
         run: |
           git clone https://github.com/n8n-io/n8n.git n8n
+          cp ${GITHUB_WORKSPACE}/pkgs.sh n8n/pkgs.sh
+          echo "pkgs.sh copied over n8n."
           cd n8n
           echo "Cloned n8n from upstream."
 
@@ -117,7 +119,7 @@ jobs:
 
       # Step 12: Build and Push Docker Image
       - name: Build and Push Docker Image
-        working-directory: n8n/docker/images/n8n
+        working-directory: n8n/docker/images/n8n-custom
         run: |
           docker buildx build \
             --build-arg N8N_VERSION=${{ env.N8N_VERSION }} \
