@@ -27,10 +27,10 @@ jobs:
       DOCKER_REGISTRY: docker.io
       GITHUB_REGISTRY: ghcr.io
       N8N_VERSION: "1.77.3"
-      TARGETPLATFORM: "linux/amd64,linux/arm64"
+      # TARGETPLATFORM is automatically set by buildx; we don’t need to pass it as an env var.
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout this repository (if you have custom plugins or files)
+      # Step 1: Checkout this repository (your custom plugins, pkgs.sh, etc.)
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -46,18 +46,23 @@ jobs:
         with:
           version: 10.2.1 
 
-      # Step 4: Clone the upstream n8n repository into a subfolder
-      - name: Clone n8n Repository
+      # Step 4: Clone the upstream n8n repository into a subfolder and modify its Dockerfile
+      - name: Clone n8n Repository and Patch Dockerfile
         run: |
+          # Clone the upstream n8n repository into the "n8n" folder
           git clone https://github.com/n8n-io/n8n.git n8n
-          cp ${GITHUB_WORKSPACE}/pkgs.sh n8n/pkgs.sh
-          echo "pkgs.sh copied over n8n."
+          # Copy our custom pkgs.sh into the n8n repository (inside the docker images build folder)
+          cp ${GITHUB_WORKSPACE}/pkgs.sh n8n/docker/images/n8n-custom/pkgs.sh
+          echo "pkgs.sh copied to n8n/docker/images/n8n-custom/pkgs.sh."
           cd n8n
           echo "Cloned n8n from upstream."
-          sed -i 's|^COPY docker/images/n8n/docker-entrypoint.sh /|COPY ./pkgs.sh /\nCOPY ./docker/images/n8n/docker-entrypoint.sh /|' ./docker/images/n8n-custom/Dockerfile
-          sed -i 's|^COPY docker/images/n8n/n8n-task-runners.json /etc/n8n-task-runners.json|COPY ./docker/images/n8n/n8n-task-runners.json /etc/n8n-task-runners.json|' ./docker/images/n8n-custom/Dockerfile
-          sed -i 's|^\([[:space:]]*\)chown node:node .n8n$|\1chown node:node .n8n && \\\n\1chmod +x /pkgs.sh  && \\\n\1/pkgs.sh|' ./docker/images/n8n-custom/Dockerfile
-          sed -i 's|--platform=linux/amd64|--platform=${TARGETPLATFORM}|' ./docker/images/n8n-custom/Dockerfile
+          # Update Dockerfile to:
+          #   1. COPY the pkgs.sh from the local directory (using its new location)
+          #   2. Reference docker-entrypoint.sh and task-runners.json with a leading "./" so they are found in the build context.
+          sed -i 's|^COPY docker/images/n8n/docker-entrypoint.sh /|COPY ./docker/images/n8n-custom/pkgs.sh /\nCOPY ./docker/images/n8n/docker-entrypoint.sh /|' docker/images/n8n-custom/Dockerfile
+          sed -i 's|^COPY docker/images/n8n/n8n-task-runners.json /etc/n8n-task-runners.json|COPY ./docker/images/n8n/n8n-task-runners.json /etc/n8n-task-runners.json|' docker/images/n8n-custom/Dockerfile
+          sed -i 's|^\([[:space:]]*\)chown node:node .n8n$|\1chown node:node .n8n && \\\n\1chmod +x /pkgs.sh  && \\\n\1/pkgs.sh|' docker/images/n8n-custom/Dockerfile
+          sed -i 's|--platform=linux/amd64|--platform=${TARGETPLATFORM}|' docker/images/n8n-custom/Dockerfile
 
       # Step 5: Install global dependencies (turbo, typescript, rimraf, cross-env, vue-tsc)
       - name: Install Global Dependencies
@@ -124,9 +129,10 @@ jobs:
 
       # Step 12: Build and Push Docker Image
       - name: Build and Push Docker Image
-        working-directory: n8n/docker/images/n8n-custom
+        working-directory: n8n
         run: |
           docker buildx build \
+            -f docker/images/n8n-custom/Dockerfile \
             --build-arg N8N_VERSION=${{ env.N8N_VERSION }} \
             --build-arg NODE_VERSION=18 \
             --platform linux/amd64,linux/arm64 \
