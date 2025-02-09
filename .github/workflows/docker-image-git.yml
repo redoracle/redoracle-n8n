@@ -176,3 +176,4 @@ jobs:
       - name: Notify Existing Release
         if: steps.check_release.outputs.exists == 'true'
         run: echo "Release ${{ steps.get_tag.outputs.tag }} already exists."
+        
