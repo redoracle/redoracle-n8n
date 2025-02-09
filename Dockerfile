@@ -106,6 +106,12 @@ RUN npm install --save --unsafe-perm \
 # Install development dependencies (like type declarations)
 RUN npm install --save-dev @types/natural
 
+# Install dependencies
+RUN npm install
+
+# Run build script
+RUN npm run build
+
 # Ensure correct ownership for the node user
 # RUN chown -R node:node /usr/local/lib/node_modules/n8n/node_modules
 
@@ -115,6 +121,7 @@ RUN rm -rf /lib/apk/db /var/cache/apk/ /tmp/* /root/.npm /root/.cache/node /opt/
 # Switch back to the node user for security
 USER node
 WORKDIR /home/node
+
 
 # Optional environment variables for logging
 ENV REDORACLE_VERBOSE_LOGGING=false
@@ -144,6 +151,9 @@ RUN npm install -g --no-save n8n-workflow /app/redoracle-scraper /app/redoracle-
 # Switch back to the node user
 USER node
 WORKDIR /app
+
+ENV NODE_PATH="/usr/local/lib/node_modules/n8n/node_modules"
+ENV PATH="$NODE_PATH/.bin:$PATH"
 
 # Expose n8n's default port
 EXPOSE 5678
