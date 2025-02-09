@@ -1,162 +1,126 @@
-# Use the official n8n image as the base
-FROM n8nio/n8n:latest
+ARG NODE_VERSION=20
 
-# Maintainer label
-LABEL maintainer="Redoracle <support@redoracle.com>"
+# 1. Create an image to build n8n
+FROM n8nio/base:${NODE_VERSION} AS builder
 
-# Switch to root to install additional dependencies
-USER root
+# Disable lefthook installation during build
+ENV LEFTHOOK_SKIP_INSTALL=1
 
-# Install fonts
+# Install additional OS dependencies
 RUN apk --no-cache add --virtual fonts msttcorefonts-installer fontconfig && \
     update-ms-fonts && \
     fc-cache -f && \
     apk del fonts && \
-    find /usr/share/fonts/truetype/msttcorefonts/ -type l -exec unlink {} \;
+    find /usr/share/fonts/truetype/msttcorefonts/ -type l -exec unlink {} \; && \
+    apk add --no-cache \
+        python3 \
+        py3-pip \
+        python3-dev \
+        py3-requests \
+        py3-geoip2 \
+        py3-pillow \
+        py3-openssl \
+        py3-cryptography \
+        gcc \
+        musl-dev \
+        libffi-dev \
+        openssl-dev \
+        chromium \
+        chromium-chromedriver \
+        jq \
+        whois \
+        geoip \
+        nmap \
+        wget \
+        curl \
+        git \
+        openssh \
+        graphicsmagick \
+        tini \
+        tzdata \
+        ca-certificates \
+        libc6-compat
 
-# Install additional OS dependencies
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
-    python3-dev \
-    py3-requests \
-    py3-geoip2 \
-    py3-pillow \
-    py3-openssl \
-    py3-cryptography \
-    gcc \
-    musl-dev \
-    libffi-dev \
-    openssl-dev \
-    chromium \
-    chromium-chromedriver \
-    jq \
-    whois \
-    geoip \
-    nmap \
-    wget \
-    curl \
-    git \
-    openssh \
-    graphicsmagick \
-    tini \
-    tzdata \
-    ca-certificates \
-    libc6-compat
+# Build the application from source
+WORKDIR /src
+COPY . /src
+# Configure pnpm to use longer timeout and retries
+RUN pnpm config set fetch-timeout 600000 && \
+    pnpm config set fetch-retries 5 && \
+    pnpm config set registry https://registry.npmjs.org/
 
-# Install additional Python packages
-# RUN pip install --no-cache-dir --break-system-packages \
-#     selenium \
-#     shodan \
-#     trafilatura \
-#     neo4j \
-#     Levenshtein \
-#     spacy \ 
-#     nltk
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    --mount=type=cache,id=pnpm-metadata,target=/root/.cache/pnpm/metadata \
+    DOCKER_BUILD=true pnpm install --frozen-lockfile
 
-# # Download NLTK data
-# RUN python3 -m spacy download en_core_web_sm
+# Install additional JS libraries without running lifecycle scripts
+RUN pnpm install --ignore-scripts --save -w \
+        full-icu@1.5.0 \
+        @aws-sdk/client-sso-oidc@">=3.664.0 <4.0.0-0" \
+        neo4j-driver \
+        fast-levenshtein \
+        axios \
+        compromise \
+        natural \
+        wink-nlp \
+        wink-ner \
+        shodan \
+        node-readability \
+        selenium-webdriver
+        
+RUN pnpm install --ignore-scripts --save-dev -w @types/natural
 
-# # Add Python virtual environment to PATH
-# ENV PATH="/app/venv/bin:$PATH"
+RUN pnpm build
 
-# Set environment variables for n8n's existing node_modules
-ENV NODE_PATH="/usr/local/lib/node_modules/n8n/node_modules"
-ENV PATH="$NODE_PATH/.bin:$PATH"
+# Delete all dev dependencies
+RUN jq 'del(.pnpm.patchedDependencies)' package.json > package.json.tmp; mv package.json.tmp package.json
+RUN node .github/scripts/trim-fe-packageJson.js
 
-# # Set PNPM Global Directory
-# ENV PNPM_HOME="/home/node/.pnpm"
-# ENV PATH="$PNPM_HOME:$PATH"
+# Delete any source code, source-mapping, or typings
+RUN find . -type f -name "*.ts" -o -name "*.js.map" -o -name "*.vue" -o -name "tsconfig.json" -o -name "*.tsbuildinfo" | xargs rm -rf
 
-# # Ensure npm and pnpm are up-to-date, using existing installations if available
-# RUN if command -v npm >/dev/null 2>&1; then \
-#         npm config set fetch-retry-mintimeout 20000 && \
-#         npm config set fetch-retry-maxtimeout 120000 && \
-#         npm config set fetch-timeout 300000 && \
-#         npm update -g; \
-#     else \
-#         npm install -g npm@9.9.2 --fetch-timeout=300000; \
-#     fi
+# Deploy the `n8n` package into /compiled
+RUN mkdir /compiled
+RUN NODE_ENV=production DOCKER_BUILD=true pnpm --filter=n8n --prod --no-optional deploy /compiled
 
-# # Enable Corepack and install/update pnpm properly
-# RUN corepack enable \
-#     && corepack prepare pnpm@latest --activate \
-#     && pnpm self-update
+# 2. Start with a new clean image with just the code that is needed to run n8n
+FROM n8nio/base:${NODE_VERSION}
+ENV NODE_ENV=production
 
-# # Ensure the correct owner for PNPM_HOME
-# RUN mkdir -p $PNPM_HOME && chown -R node:node $PNPM_HOME
+ARG N8N_RELEASE_TYPE=dev
+ENV N8N_RELEASE_TYPE=${N8N_RELEASE_TYPE}
 
-# Set working directory to n8n’s existing node_modules for package installation
-WORKDIR /usr/local/lib/node_modules/n8n
-
-# Install additional dependencies within n8n’s existing node_modules directory
-RUN npm install --save --unsafe-perm \
-    full-icu@1.5.0 \
-    neo4j-driver \
-    fast-levenshtein \
-    axios \
-    compromise \
-    natural \
-    wink-nlp \
-    wink-ner \
-    shodan \
-    node-readability \
-    selenium-webdriver
-
-# Install development dependencies (like type declarations)
-RUN npm install --save-dev @types/natural
-
-# Install dependencies
-RUN npm install
-
-# Run build script
-RUN npm run build
-
-# Ensure correct ownership for the node user
-# RUN chown -R node:node /usr/local/lib/node_modules/n8n/node_modules
-
-# Clean up unnecessary files
-RUN rm -rf /lib/apk/db /var/cache/apk/ /tmp/* /root/.npm /root/.cache/node /opt/yarn* /tmp/v8-compile-cache*
-
-# Switch back to the node user for security
-USER node
 WORKDIR /home/node
+COPY --from=builder /compiled /usr/local/lib/node_modules/n8n
+COPY docker/images/n8n/docker-entrypoint.sh /
 
+# Setup the Task Runner Launcher
+ARG TARGETPLATFORM
+ARG LAUNCHER_VERSION=1.1.0
+COPY docker/images/n8n/n8n-task-runners.json /etc/n8n-task-runners.json
+# Download, verify, then extract the launcher binary
+RUN \
+	if [[ "$TARGETPLATFORM" = "linux/amd64" ]]; then export ARCH_NAME="amd64"; \
+	elif [[ "$TARGETPLATFORM" = "linux/arm64" ]]; then export ARCH_NAME="arm64"; fi; \
+	mkdir /launcher-temp && \
+	cd /launcher-temp && \
+	wget https://github.com/n8n-io/task-runner-launcher/releases/download/${LAUNCHER_VERSION}/task-runner-launcher-${LAUNCHER_VERSION}-linux-${ARCH_NAME}.tar.gz && \
+	wget https://github.com/n8n-io/task-runner-launcher/releases/download/${LAUNCHER_VERSION}/task-runner-launcher-${LAUNCHER_VERSION}-linux-${ARCH_NAME}.tar.gz.sha256 && \
+	# The .sha256 does not contain the filename --> Form the correct checksum file
+	echo "$(cat task-runner-launcher-${LAUNCHER_VERSION}-linux-${ARCH_NAME}.tar.gz.sha256) task-runner-launcher-${LAUNCHER_VERSION}-linux-${ARCH_NAME}.tar.gz" > checksum.sha256 && \
+	sha256sum -c checksum.sha256 && \
+	tar xvf task-runner-launcher-${LAUNCHER_VERSION}-linux-${ARCH_NAME}.tar.gz --directory=/usr/local/bin && \
+	cd - && \
+	rm -r /launcher-temp
 
-# Optional environment variables for logging
-ENV REDORACLE_VERBOSE_LOGGING=false
-ENV REDORACLE_LOG_FILE=""
+RUN \
+	cd /usr/local/lib/node_modules/n8n && \
+	npm rebuild sqlite3 && \
+	cd - && \
+	ln -s /usr/local/lib/node_modules/n8n/bin/n8n /usr/local/bin/n8n && \
+	mkdir .n8n && \
+	chown node:node .n8n
 
-# Switch to root for copying Python scripts
-USER root
-
-# Copy Python scripts
-RUN mkdir -p /app/scripts/
-COPY redoracle-n8n-plugins/scripts/ /app/scripts/
-RUN chmod +x /app/scripts/*.py
-
-# Copy plugin directories
-COPY redoracle-n8n-plugins/redoracle-scraper/ /app/redoracle-scraper
-COPY redoracle-n8n-plugins/redoracle-security/ /app/redoracle-security
-COPY redoracle-n8n-plugins/redoracle-automation/ /app/redoracle-automation
-
-# Install plugins inside n8n's existing node_modules
-WORKDIR /usr/local/lib/node_modules/n8n
-
-RUN npm install -g --no-save n8n-workflow /app/redoracle-scraper /app/redoracle-security /app/redoracle-automation
-
-# Ensure correct ownership for the node user
-# RUN chown -R node:node /usr/local/lib/node_modules/n8n/node_modules
-
-# Switch back to the node user
+ENV SHELL /bin/sh
 USER node
-WORKDIR /app
-
-ENV NODE_PATH="/usr/local/lib/node_modules/n8n/node_modules"
-ENV PATH="$NODE_PATH/.bin:$PATH"
-
-# Expose n8n's default port
-EXPOSE 5678
-
-# Use node to start n8n explicitly
-ENTRYPOINT ["tini", "--", "/docker-entrypoint.sh"]
+ENTRYPOINT ["tini", "--", "/docker-entrypoint.sh"]	

@@ -52,17 +52,9 @@ jobs:
           # Clone the upstream n8n repository into the "n8n" folder
           git clone https://github.com/n8n-io/n8n.git n8n
           # Copy our custom pkgs.sh into the n8n repository (inside the docker images build folder)
-          cp ${GITHUB_WORKSPACE}/pkgs.sh n8n/docker/images/n8n-custom/pkgs.sh
-          echo "pkgs.sh copied to n8n/docker/images/n8n-custom/pkgs.sh."
+          cp ${GITHUB_WORKSPACE}/Dockerfile n8n/docker/images/n8n-custom/Dockerfile
           cd n8n
           echo "Cloned n8n from upstream."
-          # Update Dockerfile to:
-          #   1. COPY the pkgs.sh from the local directory (using its new location)
-          #   2. Reference docker-entrypoint.sh and task-runners.json with a leading "./" so they are found in the build context.
-          sed -i 's|^COPY docker/images/n8n/docker-entrypoint.sh /|COPY ./docker/images/n8n-custom/pkgs.sh /\nCOPY ./docker/images/n8n/docker-entrypoint.sh /|' docker/images/n8n-custom/Dockerfile
-          sed -i 's|^COPY docker/images/n8n/n8n-task-runners.json /etc/n8n-task-runners.json|COPY ./docker/images/n8n/n8n-task-runners.json /etc/n8n-task-runners.json|' docker/images/n8n-custom/Dockerfile
-          sed -i 's|^\([[:space:]]*\)chown node:node .n8n$|\1chown node:node .n8n && \\\n\1chmod +x /pkgs.sh  && \\\n\1/pkgs.sh|' docker/images/n8n-custom/Dockerfile
-          # sed -i 's|--platform=linux/amd64|--platform=${TARGETPLATFORM}|' docker/images/n8n-custom/Dockerfile
 
       # Step 5: Install global dependencies (turbo, typescript, rimraf, cross-env, vue-tsc)
       - name: Install Global Dependencies
@@ -80,38 +72,19 @@ jobs:
           rm -rf node_modules
           pnpm install
 
-      # Step 7: Install additional dependencies at the workspace root
-      - name: Install Additional Dependencies at Workspace Root
-        working-directory: n8n
-        run: |
-          pnpm install --save -w \
-            full-icu@1.5.0 \
-            @aws-sdk/client-sso-oidc@">=3.664.0 <4.0.0-0" \
-            neo4j-driver \
-            fast-levenshtein \
-            axios \
-            compromise \
-            natural \
-            wink-nlp \
-            wink-ner \
-            shodan \
-            node-readability \
-            selenium-webdriver
-          pnpm install --save-dev -w @types/natural
-
-      # Step 8: Build the n8n project
+      # Step 7: Build the n8n project
       - name: Build n8n
         working-directory: n8n
         run: pnpm run build
 
-      # Step 9: Set up QEMU and Docker Buildx (for multi-architecture builds)
+      # Step 8: Set up QEMU and Docker Buildx (for multi-architecture builds)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # Step 10: Login to Docker Hub
+      # Step 9: Login to Docker Hub
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -119,7 +92,7 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Step 11: Login to GitHub Container Registry
+      # Step 10: Login to GitHub Container Registry
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -127,7 +100,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.TOKEN }}
 
-      # Step 12: Build and Push Docker Image
+      # Step 11: Build and Push Docker Image
       - name: Build and Push Docker Image
         working-directory: n8n
         run: |
@@ -142,7 +115,7 @@ jobs:
             -t ${{ env.GITHUB_REGISTRY }}/redoracle/redoracle-n8n:${{ env.N8N_VERSION }} \
             .
 
-      # Step 13: Add Build Summary Details
+      # Step 12: Add Build Summary Details
       - name: Add Summary Details
         if: always()
         run: |
