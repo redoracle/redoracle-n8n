@@ -90,7 +90,7 @@ ENV PATH="$NODE_PATH/.bin:$PATH"
 WORKDIR /usr/local/lib/node_modules/n8n
 
 # Install additional dependencies within n8n’s existing node_modules directory
-RUN npm install -g --unsafe-perm \
+RUN npm install --save --unsafe-perm \
     full-icu@1.5.0 \
     neo4j-driver \
     fast-levenshtein \
@@ -102,6 +102,9 @@ RUN npm install -g --unsafe-perm \
     shodan \
     node-readability \
     selenium-webdriver
+
+# Install development dependencies (like type declarations)
+RUN npm install --save-dev @types/natural
 
 # Ensure correct ownership for the node user
 # RUN chown -R node:node /usr/local/lib/node_modules/n8n/node_modules
