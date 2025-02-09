@@ -146,4 +146,4 @@ WORKDIR /app
 EXPOSE 5678
 
 # Use node to start n8n explicitly
-ENTRYPOINT ["tini" "--" "/docker-entrypoint.sh"]
+ENTRYPOINT ["tini", "--", "/docker-entrypoint.sh"]
