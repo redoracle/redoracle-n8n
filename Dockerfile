@@ -3,9 +3,6 @@ ARG NODE_VERSION=20
 # 1. Create an image to build n8n
 FROM n8nio/base:${NODE_VERSION} AS builder
 
-# Disable lefthook installation during build
-ENV LEFTHOOK_SKIP_INSTALL=1
-
 # Install additional OS dependencies
 RUN apk --no-cache add --virtual fonts msttcorefonts-installer fontconfig && \
     update-ms-fonts && \
@@ -48,15 +45,10 @@ COPY . /src
 # Disable Corepack (if you really need to)
 RUN corepack disable
 
-# Manually install pnpm globally
-RUN npm install -g pnpm@10.2.1
+RUN COREPACK_ENABLE_STRICT_SIGNATURES=0 DOCKER_BUILD=true --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store --mount=type=cache,id=pnpm-metadata,target=/root/.cache/pnpm/metadata DOCKER_BUILD=true pnpm install --frozen-lockfile
 
-RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    --mount=type=cache,id=pnpm-metadata,target=/root/.cache/pnpm/metadata \
-    COREPACK_ENABLE_STRICT_SIGNATURES=0 DOCKER_BUILD=true pnpm install --frozen-lockfile --ignore-scripts
-
-# Install additional JS libraries without running lifecycle scripts
-RUN pnpm install --ignore-scripts --save -w \
+# Install additional JS libraries
+RUN pnpm install --save -w \
         full-icu@1.5.0 \
         @aws-sdk/client-sso-oidc@">=3.664.0 <4.0.0-0" \
         neo4j-driver \
@@ -68,9 +60,8 @@ RUN pnpm install --ignore-scripts --save -w \
         wink-ner \
         shodan \
         node-readability \
-        selenium-webdriver
-        
-RUN pnpm install --ignore-scripts --save-dev -w @types/natural
+        selenium-webdriver && \
+    pnpm install --save-dev -w @types/natural
 
 RUN pnpm build
 
@@ -123,6 +114,6 @@ RUN \
 	mkdir .n8n && \
 	chown node:node .n8n
 
-ENV SHELL=/bin/sh
+ENV SHELL /bin/sh
 USER node
-ENTRYPOINT ["tini", "--", "/docker-entrypoint.sh"]	
+ENTRYPOINT ["tini", "--", "/docker-entrypoint.sh"]
