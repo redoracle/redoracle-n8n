@@ -45,7 +45,11 @@ RUN apk --no-cache add --virtual fonts msttcorefonts-installer fontconfig && \
 WORKDIR /src
 COPY . /src
 
+# Disable Corepack (if you really need to)
 RUN corepack disable
+
+# Manually install pnpm globally
+RUN npm install -g pnpm@10.2.1
 
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     --mount=type=cache,id=pnpm-metadata,target=/root/.cache/pnpm/metadata \
@@ -83,10 +87,10 @@ RUN NODE_ENV=production DOCKER_BUILD=true pnpm --filter=n8n --prod --no-optional
 
 # 2. Start with a new clean image with just the code that is needed to run n8n
 FROM n8nio/base:${NODE_VERSION}
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 ARG N8N_RELEASE_TYPE=dev
-ENV N8N_RELEASE_TYPE ${N8N_RELEASE_TYPE}
+ENV N8N_RELEASE_TYPE=${N8N_RELEASE_TYPE}
 
 WORKDIR /home/node
 COPY --from=builder /compiled /usr/local/lib/node_modules/n8n
@@ -119,6 +123,6 @@ RUN \
 	mkdir .n8n && \
 	chown node:node .n8n
 
-ENV SHELL /bin/sh
+ENV SHELL=/bin/sh
 USER node
 ENTRYPOINT ["tini", "--", "/docker-entrypoint.sh"]	
