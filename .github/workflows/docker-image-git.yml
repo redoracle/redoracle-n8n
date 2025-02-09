@@ -4,11 +4,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*.*.*'
-    paths:
-      - 'Dockerfile'
-      - 'docker-image-git.yml'
   schedule:
     - cron: '0 0 3 * *'
   workflow_dispatch:
