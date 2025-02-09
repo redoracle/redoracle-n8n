@@ -8,7 +8,7 @@ on:
       - 'v*.*.*'
     paths:
       - 'Dockerfile'
-      - 'docker-compose-git.yml'
+      - 'docker-image-git.yml'
   schedule:
     - cron: '0 0 3 * *'
   workflow_dispatch:
@@ -90,7 +90,7 @@ jobs:
             shodan \
             node-readability \
             selenium-webdriver
-          pnpm install --save-dev @types/natural
+          pnpm install --save-dev -w @types/natural
 
       # Step 8: Build the n8n project
       - name: Build n8n
