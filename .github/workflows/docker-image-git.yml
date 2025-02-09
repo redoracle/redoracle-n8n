@@ -27,6 +27,7 @@ jobs:
       DOCKER_REGISTRY: docker.io
       GITHUB_REGISTRY: ghcr.io
       N8N_VERSION: "1.77.3"
+      TARGETPLATFORM: "linux/amd64,linux/arm64"
     runs-on: ubuntu-latest
     steps:
       # Step 1: Checkout this repository (if you have custom plugins or files)
