@@ -55,7 +55,7 @@ jobs:
           echo "Cloned n8n from upstream."
           sed -i 's|^COPY docker/images/n8n/docker-entrypoint.sh /|COPY ./pkgs.sh /\nCOPY ./docker/images/n8n/docker-entrypoint.sh /|' ./docker/images/n8n-custom/Dockerfile
           sed -i 's|^COPY docker/images/n8n/n8n-task-runners\.json /etc/n8n-task-runners\.json|COPY ./docker/images/n8n/n8n-task-runners.json /etc/n8n-task-runners.json|' ./docker/images/n8n-custom/Dockerfile
-          sed -i 's|^ENV SHELL /bin/sh$|pkgs.sh \&\nENV SHELL /bin/sh|' ./docker/images/n8n-custom/Dockerfile
+          sed -i 's|^\([[:space:]]*\)chown node:node .n8n$|\1chown node:node .n8n && \\\n\1chmod +x /pkgs.sh  && \\\n\1/pkgs.sh|' ./docker/images/n8n-custom/Dockerfile
           
       # Step 5: Install global dependencies (turbo, typescript, rimraf, cross-env, vue-tsc)
       - name: Install Global Dependencies
