@@ -146,4 +146,4 @@ WORKDIR /app
 EXPOSE 5678
 
 # Use node to start n8n explicitly
-CMD ["node", "/usr/local/bin/n8n"]
+CMD ["/usr/local/bin/n8n"]
