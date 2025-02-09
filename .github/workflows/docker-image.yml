@@ -11,8 +11,8 @@ on:
       - 'docker-compose.yml'
 
   schedule:
-    - cron: '0 0 * * 0' # This will trigger weekly (Sunday at midnight)
-    
+    - cron: '0 0 1 * *'  # Runs on the 1st of every month at midnight
+        
   workflow_dispatch:
     inputs:
       branch:
