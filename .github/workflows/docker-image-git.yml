@@ -3,51 +3,105 @@ name: Build, Push Docker Image, and Create Release for Redoracle Plugins
 on:
   push:
     branches:
-      - main  # Triggers on every push to the 'main' branch
+      - main
     tags:
-      - 'v*.*.*'  # Trigger on version tag pushes like v1.0.0
+      - 'v*.*.*'
     paths:
       - 'Dockerfile'
       - 'docker-compose.yml'
-
   schedule:
-    - cron: '0 0 1 * *'  # Runs on the 1st of every month at midnight
-        
-  # workflow_dispatch:
-  #   inputs:
-  #     branch:
-  #       description: Branch to deploy
-  #       required: false
-  #       default: main
-  #     testing:
-  #       description: Enable testing workflow
-  #       required: false
-  #       type: boolean
-  #       default: false
-  #     tag:
-  #       description: Tag for the release (e.g., v1.0.0)
-  #       required: false
+    - cron: '0 0 3 * *'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to deploy
+        required: false
+        default: main
+      testing:
+        description: Enable testing workflow
+        required: false
+        type: boolean
+        default: false
+      tag:
+        description: Tag for the release (e.g., v1.0.0)
+        required: false
 
 jobs:
   build-and-push:
     env:
       DOCKER_REGISTRY: docker.io
       GITHUB_REGISTRY: ghcr.io
+      N8N_VERSION: "1.0.0"
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout Repository
-      - uses: actions/checkout@v4
+      # Step 1: Checkout this repository (if you have custom plugins or files)
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      # Step 2: Set up QEMU and Docker Buildx
+      # Step 2: Set up Node.js and pnpm
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+          cache: "pnpm"
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      # Step 3: Clone the upstream n8n repository into a subfolder
+      - name: Clone n8n Repository
+        run: |
+          git clone https://github.com/n8n-io/n8n.git n8n-src
+          cd n8n-src
+          echo "Cloned n8n from upstream."
+
+      # Step 4: Install global dependencies (turbo, typescript, rimraf, cross-env, vue-tsc)
+      - name: Install Global Dependencies
+        working-directory: n8n-src
+        run: |
+          pnpm install -g turbo
+          pnpm install -g typescript rimraf
+          pnpm install -g cross-env vue-tsc
+
+      # Step 5: Clean pnpm cache and node_modules then install dependencies
+      - name: Clean and Install Dependencies
+        working-directory: n8n-src
+        run: |
+          pnpm cache delete
+          rm -rf node_modules
+          pnpm install
+
+      # Step 6: Install additional dependencies at the workspace root
+      - name: Install Additional Dependencies at Workspace Root
+        working-directory: n8n-src
+        run: |
+          pnpm install --save -w \
+            full-icu@1.5.0 \
+            @aws-sdk/client-sso-oidc@">=3.664.0 <4.0.0-0" \
+            neo4j-driver \
+            fast-levenshtein \
+            axios \
+            compromise \
+            natural \
+            wink-nlp \
+            wink-ner \
+            shodan \
+            node-readability \
+            selenium-webdriver
+          pnpm install --save-dev @types/natural
+
+      # Step 7: Build the n8n project
+      - name: Build n8n
+        working-directory: n8n-src
+        run: pnpm run build
+
+      # Step 8: Build the Docker image
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-        with:
-          install: true
 
-      # Step 3: Docker Hub Login
+      # Login to Docker Hub
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
@@ -55,7 +109,7 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Step 4: GitHub Container Registry Login
+      # Login to GitHub Container Registry
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
         with:
@@ -63,16 +117,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.TOKEN }}
 
-      # Step 5: Build and Push Docker Images
+      # Step 9: Build and Push Docker Image
       - name: Build and Push Docker Image
+        working-directory: n8n-src/docker/images/n8n
         run: |
-          docker buildx build . \
+          docker buildx build \
+            --build-arg N8N_VERSION=${{ env.N8N_VERSION }} \
             --platform linux/amd64,linux/arm64 \
             --push \
             -t ${{ env.DOCKER_REGISTRY }}/redoracle/redoracle-n8n:latest \
-            -t ${{ env.GITHUB_REGISTRY }}/redoracle/redoracle-n8n:latest
+            -t ${{ env.GITHUB_REGISTRY }}/redoracle/redoracle-n8n:latest \
+            .
 
-      # Step 6: Output Build Summary
+      # Step 10: Add Build Summary Details
       - name: Add Summary Details
         if: always()
         run: |
@@ -86,15 +143,13 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') ||
         (github.event_name == 'workflow_dispatch' && github.event.inputs.tag)
     steps:
-      # Step 1: Checkout Repository
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      # Step 2: Extract Tag
       - name: Extract Tag
         id: get_tag
         run: echo "tag=${{ github.ref_name || github.event.inputs.tag }}" >> $GITHUB_OUTPUT
-        
-            # Step 3: Check for Existing Release
+
       - name: Check Release Existence
         id: check_release
         uses: actions/github-script@v6
@@ -108,7 +163,6 @@ jobs:
             const exists = releases.data.some(release => release.tag_name === tag);
             core.setOutput('exists', exists);
 
-      # Step 4: Create Release if Not Exists
       - name: Create GitHub Release
         if: steps.check_release.outputs.exists == 'false'
         uses: actions/create-release@v1
@@ -120,7 +174,6 @@ jobs:
             - **Docker Hub**: [${{ env.DOCKER_REGISTRY }}/redoracle/redoracle-n8n:latest](https://${{ env.DOCKER_REGISTRY }}/r/redoracle/redoracle-n8n)
             - **GitHub Registry**: [${{ env.GITHUB_REGISTRY }}/redoracle/redoracle-n8n:latest](https://${{ env.GITHUB_REGISTRY }}/redoracle/redoracle-n8n)
 
-      # Step 5: Notify Release Exists
       - name: Notify Existing Release
         if: steps.check_release.outputs.exists == 'true'
         run: echo "Release ${{ steps.get_tag.outputs.tag }} already exists."
