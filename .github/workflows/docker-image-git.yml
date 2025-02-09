@@ -46,10 +46,10 @@ jobs:
           cache: "pnpm"
 
       # Step 3: Set up pnpm using the official action
-      - name: Setup pnpm
+      - name: Set up pnpm
         uses: pnpm/action-setup@v2
         with:
-          version: 9.15.4 # Adjust the version as needed
+          version: 10.2.1 
 
       # Step 4: Clone the upstream n8n repository into a subfolder
       - name: Clone n8n Repository
