@@ -47,8 +47,8 @@ COPY . /src
 
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     --mount=type=cache,id=pnpm-metadata,target=/root/.cache/pnpm/metadata \
-    DOCKER_BUILD=true pnpm install --frozen-lockfile --ignore-scripts
-
+    COREPACK_ENABLE_STRICT_SIGNATURES=0 DOCKER_BUILD=true pnpm install --frozen-lockfile --ignore-scripts
+    
 # Install additional JS libraries without running lifecycle scripts
 RUN pnpm install --ignore-scripts --save -w \
         full-icu@1.5.0 \
