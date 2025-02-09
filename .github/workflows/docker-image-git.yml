@@ -53,13 +53,7 @@ jobs:
           echo "pkgs.sh copied over n8n."
           cd n8n
           echo "Cloned n8n from upstream."
-      
-      - name: Modify Dockerfile to add pkgs.sh
-        run: |
           sed -i 's|^COPY docker/images/n8n/docker-entrypoint.sh /|COPY ./pkgs.sh /\nCOPY ./docker/images/n8n/docker-entrypoint.sh /|' ./docker/images/n8n-custom/Dockerfile
-
-      - name: Modify docker-entrypoint.sh to run pkgs.sh in background
-        run: |
           sed -i '1s|^#!/bin/sh$|#!/bin/sh\npkgs.sh &|' ./docker-entrypoint.sh
           
       # Step 5: Install global dependencies (turbo, typescript, rimraf, cross-env, vue-tsc)
