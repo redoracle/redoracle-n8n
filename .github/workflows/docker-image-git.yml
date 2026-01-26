@@ -32,7 +32,7 @@ jobs:
     steps:
       # Step 1: Checkout this repository (your custom plugins, pkgs.sh, etc.)
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # Step 2: Set up Node.js and enable pnpm caching
       - name: Set up Node.js
@@ -131,7 +131,7 @@ jobs:
       || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag)
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Extract Tag
         id: get_tag
