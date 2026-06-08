@@ -38,7 +38,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "18"
+          node-version: "22"
 
       # Step 3: Set up pnpm using the official action
       - name: Set up pnpm
@@ -107,7 +107,7 @@ jobs:
           docker buildx build \
             -f docker/images/n8n-custom/Dockerfile \
             --build-arg N8N_VERSION=${{ env.N8N_VERSION }} \
-            --build-arg NODE_VERSION=18 \
+            --build-arg NODE_VERSION=22 \
             --platform linux/amd64,linux/arm64 \
             --push \
             -t ${{ env.DOCKER_REGISTRY }}/redoracle/redoracle-n8n:latest \
@@ -152,10 +152,10 @@ jobs:
 
       - name: Create GitHub Release
         if: steps.check_release.outputs.exists == 'false'
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.get_tag.outputs.tag }}
-          release_name: Release ${{ steps.get_tag.outputs.tag }}
+          name: Release ${{ steps.get_tag.outputs.tag }}
           body: |
             ### Redoracle Plugins Release ${{ steps.get_tag.outputs.tag }}
             - **Docker Hub**: [${{ env.DOCKER_REGISTRY }}/redoracle/redoracle-n8n:latest](https://${{ env.DOCKER_REGISTRY }}/r/redoracle/redoracle-n8n)
