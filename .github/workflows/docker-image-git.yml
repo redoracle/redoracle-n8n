@@ -32,7 +32,7 @@ jobs:
     steps:
       # Step 1: Checkout this repository (your custom plugins, pkgs.sh, etc.)
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Step 2: Set up Node.js and enable pnpm caching
       - name: Set up Node.js
@@ -42,7 +42,7 @@ jobs:
 
       # Step 3: Set up pnpm using the official action
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10.2.1 
 
@@ -86,7 +86,7 @@ jobs:
 
       # Step 9: Login to Docker Hub
       - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.DOCKER_REGISTRY }}
           username: ${{ secrets.DOCKER_USER }}
@@ -94,7 +94,7 @@ jobs:
 
       # Step 10: Login to GitHub Container Registry
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.GITHUB_REGISTRY }}
           username: ${{ github.actor }}
@@ -131,7 +131,7 @@ jobs:
       || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag)
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Extract Tag
         id: get_tag
@@ -139,7 +139,7 @@ jobs:
 
       - name: Check Release Existence
         id: check_release
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const tag = '${{ steps.get_tag.outputs.tag }}';
@@ -152,7 +152,7 @@ jobs:
 
       - name: Create GitHub Release
         if: steps.check_release.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.get_tag.outputs.tag }}
           name: Release ${{ steps.get_tag.outputs.tag }}
